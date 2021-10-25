@@ -58,12 +58,23 @@ def poll() -> None:
                 q = [r2d(q[0]), r2d(q[1]), r2d(q[2]), r2d(q[3]), r2d(q[4]), r2d(q[5])]
                 tick = 1 + read_output_integer_register(1)
                 write_output_integer_register(1, tick)
+                T = get_tcp_offset()
+                t = [T[0], T[1], T[2], T[3], T[4], T[5]]
+                def round(v):
+                    i = 0
+                    while i < get_list_length(v):
+                        v[i] = floor(v[i] * 100 + 0.5) / 100
+                        i = i + 1
+                    end
+                    return to_str(v)
+                end
                 textmsg("poll {" +
-                    "'xyz': " + to_str(xyz) + ", " +
-                    "'rpy': " + to_str(rpy) + ", " +
-                    "'joints': " + to_str(q) + ", " +
-                    "'pos': " + to_str([read_output_integer_register(0)]) + ", " +
-                    "'tick': " + to_str([floor(tick / 5) % 9 + 1]) + ", " +
+                    "'xyz': " + round(xyz) + ", " +
+                    "'rpy': " + round(rpy) + ", " +
+                    "'joints': " + round(q) + ", " +
+                    "'tcp_offset': " + round(t) + ", " +
+                    "'pos': " + round([read_output_integer_register(0)]) + ", " +
+                    "'tick': " + round([floor(tick / 5) % 9 + 1]) + ", " +
                 "} eom")
             end
         '''))

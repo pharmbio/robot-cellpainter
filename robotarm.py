@@ -11,7 +11,7 @@ import gripper
 
 prelude = '''
     # Set TCP so that RPY makes sense
-    set_tcp(p[0, 0, 0, -1.2092, 1.2092, 1.2092])
+    # set_tcp(p[0, 0, 0, -1.2092, 1.2092, 1.2092])
 
     set_gravity([0.0, 0.0, 9.82])
     set_payload(0.1)
@@ -70,6 +70,16 @@ prelude = '''
             movej(q, a=1.4, v=1.05)
         end
         set_last(0, 0, 0, 0, 0, 0, False)
+    end
+
+    def HorizontalTRF():
+        set_tcp(p[0, 0, 0, -1.2092, 1.2092, 1.2092])
+        last_lin=False
+    end
+
+    def VerticalTRF():
+        set_tcp(p[0, 0, 0, 0, 0, 0])
+        last_lin=False
     end
 '''
 

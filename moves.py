@@ -64,6 +64,30 @@ def keep_true(**kvs: Any) -> dict[str, Any]:
     return {k: v for k, v in kvs.items() if v}
 
 @dataclass(frozen=True)
+class HorizontalTRF(Move):
+    '''
+    from scipy.spatial.transform import Rotation, Rotation as R
+
+    nice_trf : Rotation
+    nice_trf = R.from_euler("xyz", [-90, 90, 0], degrees=True)
+
+    nice_trf_pose : list[float]
+    nice_trf_pose = [0, 0, 0, *nice_trf.as_rotvec()]
+    '''
+    def to_script(self) -> str:
+        return call(self.__class__.__name__)
+
+@dataclass(frozen=True)
+class VerticalTRF(Move):
+    '''
+    Pitch: 0 is facing downwards
+    Roll: sideways rotation
+    Yaw: plate rotation
+    '''
+    def to_script(self) -> str:
+        return call(self.__class__.__name__)
+
+@dataclass(frozen=True)
 class MoveLin(Move):
     '''
     Move linearly to an absolute position in the room reference frame.

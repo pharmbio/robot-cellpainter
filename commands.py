@@ -263,6 +263,21 @@ class Duration(Command):
         t0 = runtime.wait_for_checkpoint(self.name)
         runtime.log('end', 'duration', self.name, t0=t0, metadata=metadata)
 
+'''
+TimeSince(name, maximize_weight=1)
+TimeSince(name, minimize_weight=1)
+TimeSince(name, equal=1)
+TimeSince(name, equal='introduced name', log=True)
+'''
+
+@dataclass(frozen=True)
+class Maximize(Command):
+    value: Symbolic
+    weight: float = 1.0
+
+    def execute(self, runtime: Runtime, metadata: dict[str, Any]) -> None:
+        pass
+
 ForkAssumption = Literal['nothing', 'busy', 'idle']
 
 @dataclass(frozen=True)
