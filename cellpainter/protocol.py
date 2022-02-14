@@ -185,17 +185,17 @@ Interleavings = dict(
         incu -> B21 -> wash -> disp -> B21 -> incu
     '''),
     june = Interleaving.init('''
-        incu -> B21  -> wash
-        incu -> B21
-                        wash -> disp
-                B21  -> wash
-                                disp -> B21 -> incu
-        incu -> B21
-                        wash -> disp
-                B21  -> wash
-                                disp -> B21 -> incu
-                        wash -> disp
-                                disp -> B21 -> incu
+        incu -> B21  -> S1 -> wash
+        incu -> B21  -> S1
+                              wash -> S3
+                        S1 -> wash
+                                      S3 -> disp -> B21 -> incu
+        incu -> B21  -> S1
+                              wash -> S3
+                        S1 -> wash
+                                      S3 -> disp -> B21 -> incu
+                              wash -> S3
+                                      S3 -> disp -> B21 -> incu
     '''),
     mix = Interleaving.init('''
         incu -> B21 -> wash
@@ -378,10 +378,10 @@ def make_v3(args: ProtocolArgsInterface = ProtocolArgs()) -> ProtocolConfig:
             'automation_v4.0/9_W_5X_leaves80ul_PBS.LHC',
         ]),
         prime = [
-            'automation_v4.0/2.0_D_SB_PRIME_Mito.LHC',
-            'automation_v4.0/4.0_D_SA_PRIME_PFA.LHC',
-            'automation_v4.0/6.0_D_P1_PRIME_Triton.LHC',
-            'automation_v4.0/8.0_D_P2_MIX_PRIME.LHC',
+            '', # 'automation_v4.0/2.0_D_SB_PRIME_Mito.LHC',
+            '', # 'automation_v4.0/4.0_D_SA_PRIME_PFA.LHC',
+            '', # 'automation_v4.0/6.0_D_P1_PRIME_Triton.LHC',
+            '', # 'automation_v4.0/8.0_D_P2_MIX_PRIME.LHC',
             '',
             '',
         ][:N],
@@ -389,7 +389,7 @@ def make_v3(args: ProtocolArgsInterface = ProtocolArgs()) -> ProtocolConfig:
             '',
             '',
             '',
-            'automation_v4.0/8.1_D_P2_purge_then_predispense.LHC',
+            '', # 'automation_v4.0/8.1_D_P2_purge_then_predispense.LHC',
             '',
             '',
         ][:N],
@@ -637,10 +637,13 @@ def paint_batch(batch: list[Plate], protocol_config: ProtocolConfig) -> Command:
                 pre_disp = Idle()
                 pre_disp_wait = Idle()
 
-            wash = [
+            wash_put = [
                 RobotarmCmd('wash put prep'),
                 WashFork(p.wash[i], cmd='Validate', assume='idle').delay(1) if plate is first_plate else Idle(),
                 RobotarmCmd('wash put transfer'),
+            ]
+
+            wash = [
                 pre_disp if pre_disp_is_long else Idle(),
                 Fork(
                     Sequence(
@@ -653,17 +656,27 @@ def paint_batch(batch: list[Plate], protocol_config: ProtocolConfig) -> Command:
                     ),
                     assume='nothing',
                 ),
+            ]
+            wash_return = [
                 RobotarmCmd('wash put return'),
             ]
 
-            disp = [
-                RobotarmCmd('wash_to_disp prep'),
+            wash_wait = [
                 Early(1),
                 WaitForResource('wash', assume='will wait'),
                 Idle() if pre_disp_is_long else pre_disp,
+            ]
+
+            disp_put = [
+                RobotarmCmd('wash_to_disp prep'),
+                *wash_wait,
                 RobotarmCmd('wash_to_disp transfer'),
+            ]
+            disp = [
                 pre_disp_wait,
-                Duration(f'{plate_desc} transfer {ix}', exactly=estimate(RobotarmCmd('wash_to_disp transfer'))),
+                # Duration(f'{plate_desc} transfer {ix}', exactly=estimate(RobotarmCmd('wash_to_disp transfer'))),
+                # Duration(f'{plate_desc} transfer {ix}', opt_weight=-1000),
+                Duration(f'{plate_desc} transfer {ix}', exactly=23),
                 Fork(
                     Sequence(
                         DispCmd(p.disp[i], cmd='RunValidated'),
@@ -690,8 +703,13 @@ def paint_batch(batch: list[Plate], protocol_config: ProtocolConfig) -> Command:
                     section_info_by_incu = Section(step)
 
             chunks[plate.id, step, 'incu -> B21' ] = [*incu_delay, section_info_by_incu, *incu_get]
-            chunks[plate.id, step,  'B21 -> wash'] = [section_info_by_wash, *wash]
-            chunks[plate.id, step, 'wash -> disp'] = disp
+            chunks[plate.id, step,  'B21 -> wash'] = [section_info_by_wash, *wash_put, *wash, *wash_return]
+            chunks[plate.id, step,  'B21 -> S1'  ] = RobotarmCmds('S1 put')
+            chunks[plate.id, step,   'S1 -> wash'] = [*RobotarmCmds('S1 put-to-wash'), *wash]
+            chunks[plate.id, step, 'wash -> S3'  ] = [*wash_wait, *RobotarmCmds('S3 get-from-wash')]
+            chunks[plate.id, step,   'S3 -> disp'] = [*RobotarmCmds('S3 put-to-disp'), *disp]
+            # [section_info_by_wash, *wash_put, *wash]
+            chunks[plate.id, step, 'wash -> disp'] = [*disp_put, *disp]
             chunks[plate.id, step, 'disp -> B21' ] = [*disp_to_B21, *lid_on]
 
             chunks[plate.id, step, 'wash -> B21' ] = [*RobotarmCmds('wash get', before_pick=[WaitForResource('wash')]), *lid_on]
@@ -757,7 +775,7 @@ def paint_batch(batch: list[Plate], protocol_config: ProtocolConfig) -> Command:
         for next in nexts:
             deps[next] |= {node}
 
-    if 0:
+    if 1:
         for d, ds in deps.items():
             for x in ds:
                 print(
@@ -768,7 +786,7 @@ def paint_batch(batch: list[Plate], protocol_config: ProtocolConfig) -> Command:
 
     linear = list(graphlib.TopologicalSorter(deps).static_order())
 
-    if 0:
+    if 1:
         utils.pr([
             ', '.join((desc[1], desc[0], desc[2]))
             for desc in linear
@@ -785,6 +803,11 @@ def paint_batch(batch: list[Plate], protocol_config: ProtocolConfig) -> Command:
         'wash -> B15':  3,
         'B15 -> B21':   4,
         'B15 -> out':   4,
+
+        'B21 -> S1':    2,
+        'S1 -> wash':   2,
+        'wash -> S3':   3,
+        'S3 -> disp':   3,
     }
 
     plate_cmds = [
@@ -824,6 +847,6 @@ def cell_paint_program(batch_sizes: list[int], protocol_config: ProtocolConfig, 
     )
     if sleek:
         program = sleek_program(program)
-    program = add_world_metadata(program, world0)
+    # program = add_world_metadata(program, world0)
     return program
 

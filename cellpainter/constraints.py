@@ -43,11 +43,13 @@ from z3 import Sum, If, Optimize, Real, Int, Or # type: ignore
 from collections import defaultdict
 
 from . import estimates
+from . import utils
 from .estimates import estimate
 
 def optimize(cmd: Command) -> tuple[Command, dict[str, float]]:
     cmd = cmd.make_resource_checkpoints()
     opt = optimal_env(cmd)
+    # opt = OptimalResult(defaultdict(float), {})
     cmd = cmd.resolve(opt.env)
     return cmd, opt.expected_ends
 
@@ -181,7 +183,7 @@ def optimal_env(cmd: Command) -> OptimalResult:
 
     # print(s)
     check = str(s.check())
-    assert check == 'sat', f'Impossible to schedule! (Number of missing time estimates: {len(estimates.guesses)})'
+    assert check == 'sat', f'Impossible to schedule! (Number of missing time estimates: {len(utils.pr(estimates.guesses))})'
 
     M = s.model()
 

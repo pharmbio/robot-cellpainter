@@ -155,12 +155,17 @@ def make_runtime(config: RuntimeConfig, metadata: dict[str, str]) -> Iterator[Ru
 def check_correspondence(program: Command, est_entries: Log, expected_ends: dict[str, float]):
     matches = 0
     mismatches = 0
+    missing = 0
     seen: set[str] = set()
     for e in est_entries:
         i = e.metadata.id
         if i and (e.is_end() or isinstance(e.cmd, Checkpoint)):
             seen.add(i)
-            if abs(e.t - expected_ends[i]) > 0.3:
+            exp = expected_ends.get(i)
+            if exp is None:
+                utils.pr(('missing!', i, e))
+                missing += 1
+            elif abs(e.t - exp) > 0.3:
                 utils.pr(('mismatch!', i, e, expected_ends[i]))
                 mismatches += 1
             else:
@@ -183,8 +188,8 @@ def check_correspondence(program: Command, est_entries: Log, expected_ends: dict
                     pass
             print('not seen:', i, e, cmd, sep='\t')
 
-    if mismatches or not matches:
-        print(f'{matches=} {mismatches=} {len(expected_ends)=}')
+    if mismatches or not matches or missing:
+        print(f'{matches=} {mismatches=} {missing=} {len(expected_ends)=}')
 
 def execute_program(config: RuntimeConfig, program: Command, metadata: dict[str, str], for_visualizer: bool = False) -> Log:
     program = program.remove_noops()
