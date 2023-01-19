@@ -1,3 +1,7 @@
+# robot-cellpantier moved to [pharmbio/robotlab](https://github.com/pharmbio/robotlab)
+
+Repo moved to [pharmbio/robotlab](https://github.com/pharmbio/robotlab)
+
 # robot-cellpainter
 
 dependencies: python 3.10
